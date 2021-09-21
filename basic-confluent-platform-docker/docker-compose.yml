@@ -258,34 +258,6 @@ services:
     entrypoint: sleep infinity
 
 # Other systems
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.0
-    container_name: elasticsearch
-    #restart: always
-    ports:
-      - 9200:9200
-      - 9300:9300
-    environment:
-      discovery.type: "single-node"
-      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
-      cluster.name: "elasticsearch-cp-demo"
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana-oss:7.10.0
-    container_name: kibana
-    restart: always
-    depends_on:
-      - elasticsearch
-    ports:
-      - 5601:5601
-    environment:
-      NEWSFEED_ENABLED: 'false'
-      TELEMETRY_OPTIN: 'false'
-      TELEMETRY_ENABLED: 'false'
-      SERVER_MAXPAYLOADBYTES: 4194304
-      KIBANA_AUTOCOMPLETETIMEOUT: 3000
-      KIBANA_AUTOCOMPLETETERMINATEAFTER: 2500000
-
   datagen-ratings:
     image: confluentinc/ksqldb-examples:6.2.0
     container_name: datagen-ratings
@@ -308,6 +280,20 @@ services:
                           schemaRegistryUrl=http://schema-registry:8081 \
                           propertiesFile=/etc/ksqldb/datagen.properties'"
 
+  postgres:
+    image: postgres
+    restart: always
+    hostname: postgres
+    container_name: postgres  
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
+        
+
   mysql:
     # *-----------------------------*
     # To connect to the DB: 
@@ -326,41 +312,3 @@ services:
     volumes:
      - ${PWD}/data/customers.sql:/docker-entrypoint-initdb.d/z99_dump.sql
 
-  connect-debezium:
-    image: debezium/connect:0.9.3.Final
-    hostname: connect-debezium
-    container_name: connect-debezium
-    restart: always
-    depends_on:
-     - kafka-01
-     - kafka-02
-     - mysql
-     - schema-registry
-    ports:
-     - 8083:8083
-    environment:
-      BOOTSTRAP_SERVERS: kafka-01:19091,kafka-02:19092
-      GROUP_ID: connect-debezium
-      CONFIG_STORAGE_TOPIC: docker-connect-debezium-configs
-      OFFSET_STORAGE_TOPIC: docker-connect-debezium-offsets
-      STATUS_STORAGE_TOPIC: docker-connect-debezium-status
-      KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
-      VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
-      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
-    volumes:
-     - ${PWD}/scripts:/scripts
-
-  websockets:
-    container_name: websockets
-    build: ./websockets
-  
-  nginx:
-    image: nginx:1.15-alpine
-    container_name: nginx
-    depends_on:
-      - websockets
-    ports:
-      - 8080:8080
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
